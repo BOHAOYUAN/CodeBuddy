@@ -80,6 +80,8 @@ export class ReActAgent {
   private readonly llm: LlmClient;
   private readonly memory: LongTermMemory;
   private readonly shortTerm: ShortTermMemory;
+  /** True once apply_code_patch has been called at least once in this run. */
+  private patchAttempted = false;
   private readonly loopGuard = new LoopGuard(3, 6);
   private readonly tracer: Tracer;
   private readonly observedFiles = new Map<string, number>();
@@ -152,6 +154,31 @@ export class ReActAgent {
 
       for (let iteration = 1; iteration <= config.maxIterations; iteration++) {
         lastIteration = iteration;
+
+        // Provider-agnostic guardrail. Observed on DeepSeek: the model reads
+        // files and re-runs tests indefinitely without ever calling
+        // apply_code_patch. Reading cannot repair anything, so state that
+        // explicitly instead of waiting for the loop guard to kill the run.
+        if (
+          !this.patchAttempted &&
+          config.noPatchNudgeAtIteration > 0 &&
+          iteration === config.noPatchNudgeAtIteration
+        ) {
+          this.shortTerm.push({
+            role: 'user',
+            content:
+              `${iteration} iterations have passed and no file has been modified yet. ` +
+              `Reading files and running tests cannot fix the bug by themselves. ` +
+              `Call apply_code_patch now with the corrected source code.`,
+          });
+          this.emit({
+            step: iteration,
+            iteration,
+            category: 'reflection',
+            title: 'No edit attempted yet — nudging the model to patch',
+            content: 'No apply_code_patch call so far. Requesting one explicitly.',
+          });
+        }
 
         const window = this.shortTerm.window();
         this.contextCharsSent += window.stats.charsKept;
@@ -253,6 +280,12 @@ export class ReActAgent {
             content: result.observation,
             ok: result.ok,
           });
+
+          if (name === 'apply_code_patch') {
+            // Counted as an attempt regardless of outcome: a rejected patch is
+            // still progress information, and it stops the nudge from firing.
+            this.patchAttempted = true;
+          }
 
           if (name === 'apply_code_patch' && result.ok) {
             this.emit({
@@ -381,7 +414,10 @@ export class ReActAgent {
     const completion = await this.llm.complete({
       phase: 'plan',
       temperature: 0,
-      maxTokens: 700,
+      // Was hardcoded 700, which silently ignored AGENT_MAX_TOKENS. A model
+      // that writes longer plans (DeepSeek) gets its output truncated here, the
+      // tool call never materialises, and the loop guard then sees a "repeat".
+      maxTokens: this.options.config.maxTokens,
       messages: [
         {
           role: 'system',
@@ -486,7 +522,7 @@ export class ReActAgent {
         phase: 'cross-validate',
         model: this.options.config.validatorModel,
         temperature: 0,
-        maxTokens: 300,
+        maxTokens: this.options.config.maxTokens,
         responseFormat: { type: 'json_object' },
         messages: [
           {
@@ -550,7 +586,7 @@ export class ReActAgent {
       const completion = await this.llm.complete({
         phase: 'reflect',
         temperature: 0,
-        maxTokens: 400,
+        maxTokens: this.options.config.maxTokens,
         responseFormat: { type: 'json_object' },
         messages: [
           {

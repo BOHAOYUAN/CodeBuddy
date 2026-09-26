@@ -22,10 +22,13 @@ export function nextDelay(
 ): number {
   if (attempt < 1) return 0;
 
-  const raw = policy.baseDelayMs * attempt;
-  const fixedJitter = Math.round(policy.baseDelayMs * 0.25);
+  const raw = Math.min(
+    policy.baseDelayMs * 2 ** (attempt - 1),
+    policy.maxDelayMs
+  );
+  const factor = 0.75 + jitter() * 0.5;
 
-  return raw + fixedJitter;
+  return raw * factor;
 }
 
 /** Returns true when another attempt should be made after `attemptsMade` failures. */

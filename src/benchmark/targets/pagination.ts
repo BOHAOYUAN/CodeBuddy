@@ -9,12 +9,12 @@ export function paginate<T>(items: T[], page: number, size: number): T[] {
   if (page < 1 || size <= 0) return [];
 
   const start = (page - 1) * size;
-  const end = size;
+  const end = start + size;
 
   return items.slice(start, end);
 }
 
 export function totalPages(itemCount: number, size: number): number {
   if (size <= 0) return 0;
-  return Math.floor(itemCount / size);
+  return Math.ceil(itemCount / size);
 }

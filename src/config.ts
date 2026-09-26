@@ -18,6 +18,11 @@ export interface AgentConfig {
   traceDir: string;
   maxObservationChars: number;
   maxPlanSteps: number;
+  /**
+   * Iteration at which the agent reminds the model that it has not edited
+   * anything yet. 0 disables the nudge.
+   */
+  noPatchNudgeAtIteration: number;
   /** Requests-per-minute token ceiling. 0 disables client-side pacing. */
   tpmLimit: number;
   pricePerMTokIn: number;
@@ -112,6 +117,10 @@ export function loadConfig(overrides: ConfigOverrides = {}): AgentConfig {
     traceDir: process.env.AGENT_TRACE_DIR || path.join(workspaceRoot, '.codebuddy', 'traces'),
     maxObservationChars: num(process.env.AGENT_MAX_OBSERVATION_CHARS, 1800),
     maxPlanSteps: num(process.env.AGENT_MAX_PLAN_STEPS, 5),
+    // Some providers happily read files and run tests forever without ever
+    // attempting a fix. Nudging at iteration 3 costs almost nothing and is
+    // provider-agnostic.
+    noPatchNudgeAtIteration: num(process.env.AGENT_NO_PATCH_NUDGE_AT, 3),
     // Client-side pacing only matters against a provider with a per-minute
     // token ceiling (Groq's free tier: 8,000 TPM). DeepSeek bills instead of
     // throttling, so the default is off.
