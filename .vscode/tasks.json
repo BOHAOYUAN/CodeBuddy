@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "vscode:build",
+      "problemMatcher": ["$esbuild"],
+      "label": "npm: vscode:build",
+      "group": "build"
+    },
+    {
+      "type": "npm",
+      "script": "typecheck",
+      "problemMatcher": ["$tsc"],
+      "label": "npm: typecheck",
+      "group": "test"
+    }
+  ]
+}

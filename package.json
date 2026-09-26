@@ -1,30 +1,129 @@
 {
   "name": "codebuddy-agent",
-  "version": "1.0.0",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Autonomous ReAct code-repair agent: AST-driven context pruning, real LLM tool calling, loop detection, long-term memory and a reproducible evaluation harness.",
+  "author": "haoyuanbo",
+  "license": "MIT",
+  "main": "./dist/extension.js",
   "scripts": {
     "start": "tsx src/index.ts",
     "agent": "tsx src/index.ts",
-    "test": "vitest run"
+    "eval": "tsx src/eval/run.ts",
+    "eval:history": "tsx src/eval/history.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:benchmark": "vitest run --config vitest.benchmark.config.mts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "vscode:build": "node esbuild.js",
+    "vscode:watch": "node esbuild.js --watch",
+    "vscode:package": "vsce package --no-git-tag-version --allow-missing-repository"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "agent",
+    "react",
+    "llm",
+    "tool-calling",
+    "ast",
+    "self-healing",
+    "evaluation"
+  ],
   "dependencies": {
     "@babel/parser": "^7.29.8",
     "@babel/traverse": "^7.29.8",
     "@babel/types": "^7.29.8",
-    "chalk": "^4.1.2",
-    "dotenv": "^17.4.2",
-    "openai": "^7.15.0"
+    "chalk": "^4.1.2"
   },
   "devDependencies": {
     "@types/babel__traverse": "^7.28.0",
     "@types/node": "^22.20.3",
-    "ts-node": "^10.9.2",
+    "@types/vscode": "~1.90.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
+  },
+  "displayName": "CodeBuddy Agent",
+  "publisher": "haoyuanbo",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Testing",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onView:codebuddy.agentSidebar"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codebuddy-activitybar",
+          "title": "CodeBuddy Agent",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codebuddy-activitybar": [
+        {
+          "type": "webview",
+          "id": "codebuddy.agentSidebar",
+          "name": "CodeBuddy Agent"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codebuddy.repairTask",
+        "title": "CodeBuddy: Repair a task (ReAct)",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "codebuddy.repairActiveTask",
+        "title": "CodeBuddy: Re-run the last repair task",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "codebuddy.resetTask",
+        "title": "CodeBuddy: Reset a task to its buggy baseline",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codebuddy.listTasks",
+        "title": "CodeBuddy: List repair tasks"
+      }
+    ],
+    "configuration": {
+      "title": "CodeBuddy Agent",
+      "properties": {
+        "codebuddy.groqApiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Groq API key. **Prefer putting `GROQ_API_KEY` in the workspace `.env` file** — this setting is stored in plain text in `settings.json` and is only meant for quick local experiments."
+        },
+        "codebuddy.model": {
+          "type": "string",
+          "default": "openai/gpt-oss-120b",
+          "markdownDescription": "Model used for the main ReAct loop."
+        },
+        "codebuddy.maxIterations": {
+          "type": "number",
+          "default": 12,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Hard cap on ReAct iterations before the run is stopped."
+        },
+        "codebuddy.crossValidation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run a second, cheaper model to review every patch before it is written to disk."
+        }
+      }
+    }
   }
 }

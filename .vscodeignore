@@ -1,0 +1,13 @@
+.vscode/**
+.vscode-test/**
+src/**
+node_modules/**
+public/**
+scratch/**
+.env*
+*.bat
+*.py
+tsconfig.json
+esbuild.js
+electron-main.js
+**/*.map
