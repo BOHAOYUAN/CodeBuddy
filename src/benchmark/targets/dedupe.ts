@@ -14,10 +14,11 @@ export function dedupeByKey<T>(items: T[], keyOf: (item: T) => string): T[] {
   const seen = new Map<string, T>();
 
   for (const item of items) {
-    seen.set(keyOf(item), item);
+    const key = keyOf(item);
+    if (!seen.has(key)) {
+      seen.set(key, item);
+    }
   }
-
-  items.length = 0;
 
   return [...seen.values()];
 }

@@ -56,6 +56,70 @@ export class ShortTermMemory {
   }
 
   /**
+   * Makes the message list safe to send to a strict OpenAI-compatible provider.
+   *
+   * The rule: every `tool` message must directly follow an `assistant` message
+   * that carries `tool_calls`, and every tool_call_id in that assistant message
+   * must be answered. Trimming the context window can easily drop the assistant
+   * half of a pair and leave an orphan `tool` message behind.
+   *
+   * Groq accepted the malformed sequence silently; DeepSeek rejects it with
+   * HTTP 400 ("Messages with role 'tool' must be a response to a preceding
+   * message with 'tool_calls'"). This is why the bug survived a day of
+   * benchmarking on one provider and appeared instantly on the other.
+   */
+  private sanitizeToolSequence(messages: ChatMessage[]): ChatMessage[] {
+    const out: ChatMessage[] = [];
+    let index = 0;
+
+    while (index < messages.length) {
+      const message = messages[index];
+
+      if (message.role === 'assistant' && message.tool_calls && message.tool_calls.length > 0) {
+        const expectedIds = new Set(message.tool_calls.map((tc) => tc.id));
+        const answered = new Set<string>();
+        const responses: ChatMessage[] = [];
+
+        let cursor = index + 1;
+        while (cursor < messages.length && messages[cursor].role === 'tool') {
+          const response = messages[cursor];
+          if (response.tool_call_id) answered.add(response.tool_call_id);
+          responses.push(response);
+          cursor++;
+        }
+
+        const complete = [...expectedIds].every((id) => answered.has(id));
+        if (complete) {
+          out.push(message, ...responses);
+        }
+        // Otherwise the pair is broken: drop the assistant turn and its
+        // partial responses rather than send an invalid sequence.
+        index = cursor;
+        continue;
+      }
+
+      if (message.role === 'tool') {
+        // Orphan: no preceding assistant tool_calls in the kept list.
+        index++;
+        continue;
+      }
+
+      out.push(message);
+      index++;
+    }
+
+    // A trailing assistant turn that still expects tool output would be invalid
+    // as the last message.
+    while (out.length > 0) {
+      const last = out[out.length - 1];
+      if (last.role === 'assistant' && last.tool_calls && last.tool_calls.length > 0) out.pop();
+      else break;
+    }
+
+    return out;
+  }
+
+  /**
    * Returns the message list to send, trimmed to the char budget.
    * Never mutates the recorded history — trimming only affects what goes on the wire,
    * so the full transcript stays available for the trace file.
@@ -98,10 +162,11 @@ export class ShortTermMemory {
           }
         : undefined;
 
-    const messages = [...mustKeep, ...(summaryStub ? [summaryStub] : []), ...keptTail];
+    const trimmed = [...mustKeep, ...(summaryStub ? [summaryStub] : []), ...keptTail];
+    const messages = this.sanitizeToolSequence(trimmed);
 
     maxIter.messagesKept = messages.length;
-    maxIter.messagesDropped = dropped.length;
+    maxIter.messagesDropped = this.messages.length + mustKeep.length - messages.length;
     maxIter.charsKept = this.size(messages);
     maxIter.charsDropped = this.droppedChars;
 
