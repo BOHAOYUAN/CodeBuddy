@@ -165,7 +165,11 @@ export function applyCodePatch(
   };
 }
 
-export function executeTestSuite(command: string, cwd: string): ToolResult {
+export function executeTestSuite(
+  command: string,
+  cwd: string,
+  options: { shell?: string } = {}
+): ToolResult {
   try {
     const stdout = execSync(command, {
       cwd,
@@ -173,12 +177,34 @@ export function executeTestSuite(command: string, cwd: string): ToolResult {
       timeout: 120000,
       windowsHide: true,
       maxBuffer: 4 * 1024 * 1024,
+      // Overridable so the spawn-failure path can be tested without breaking
+      // the real shell. Never set this in production code paths.
+      ...(options.shell ? { shell: options.shell } : {}),
     });
     return {
       success: true,
       output: stdout,
     };
   } catch (err: any) {
+    // Distinguish "the tests ran and failed" from "no shell could be started".
+    // Conflating them is expensive: the caller sees a non-zero exit that looks
+    // like a failing test, sees no output to diagnose, and starts probing with
+    // different command spellings - which the loop guard then reports as a loop.
+    // Observed in a locked-down environment where spawning cmd.exe returns EBUSY
+    // for every command, including `echo hi`.
+    const spawnFailureCodes = ['EBUSY', 'ENOENT', 'EACCES', 'EPERM', 'EMFILE', 'ENFILE'];
+    if (typeof err?.code === 'string' && spawnFailureCodes.includes(err.code)) {
+      return {
+        success: false,
+        output: '',
+        error:
+          `The command could not be started at all (${err.code}). The tests DID NOT RUN.\n` +
+          `This is an environment failure, not a test failure. Re-running the same command or a ` +
+          `different spelling of it will not help - stop probing and report this instead.\n` +
+          `Underlying message: ${String(err.message || '').split('\n')[0]}`,
+      };
+    }
+
     // A non-zero exit is expected for failing tests; both streams are evidence.
     return {
       success: false,
