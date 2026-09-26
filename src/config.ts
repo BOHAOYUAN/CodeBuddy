@@ -24,9 +24,20 @@ export interface AgentConfig {
   pricePerMTokOut: number;
 }
 
-const DEFAULT_BASE_URL = 'https://api.groq.com/openai/v1';
-const DEFAULT_MODEL = 'openai/gpt-oss-120b';
-const DEFAULT_VALIDATOR_MODEL = 'openai/gpt-oss-20b';
+const DEFAULT_BASE_URL = 'https://api.deepseek.com';
+const DEFAULT_MODEL = 'deepseek-v4-pro';
+const DEFAULT_VALIDATOR_MODEL = 'deepseek-v4-pro';
+
+/**
+ * Reads a setting under its current name, falling back to the legacy GROQ_*
+ * alias. The project started on Groq, so existing .env files still use those
+ * names; renaming them outright would break every checkout silently.
+ */
+function setting(current: string, legacy: string): string | undefined {
+  const value = process.env[current];
+  if (value !== undefined && value !== '') return value;
+  return process.env[legacy];
+}
 
 /**
  * Minimal .env parser. Avoids a runtime dependency on dotenv so the same code
@@ -82,13 +93,13 @@ export function loadConfig(overrides: ConfigOverrides = {}): AgentConfig {
   const workspaceRoot = path.resolve(overrides.workspaceRoot || process.cwd());
   loadEnvFile(workspaceRoot);
 
-  const apiKey = overrides.apiKey || process.env.GROQ_API_KEY || '';
+  const apiKey = overrides.apiKey || setting('PROVIDER_API_KEY', 'GROQ_API_KEY') || '';
 
   return {
     apiKey,
-    baseUrl: process.env.GROQ_BASE_URL || DEFAULT_BASE_URL,
-    model: overrides.model || process.env.GROQ_MODEL || DEFAULT_MODEL,
-    validatorModel: process.env.GROQ_VALIDATOR_MODEL || DEFAULT_VALIDATOR_MODEL,
+    baseUrl: setting('PROVIDER_BASE_URL', 'GROQ_BASE_URL') || DEFAULT_BASE_URL,
+    model: overrides.model || setting('PROVIDER_MODEL', 'GROQ_MODEL') || DEFAULT_MODEL,
+    validatorModel: setting('PROVIDER_VALIDATOR_MODEL', 'GROQ_VALIDATOR_MODEL') || DEFAULT_VALIDATOR_MODEL,
     enableCrossValidation: bool(process.env.AGENT_CROSS_VALIDATION, false),
     maxIterations: overrides.maxIterations ?? num(process.env.AGENT_MAX_ITERATIONS, 12),
     maxRetries: num(process.env.AGENT_MAX_RETRIES, 5),
@@ -101,9 +112,10 @@ export function loadConfig(overrides: ConfigOverrides = {}): AgentConfig {
     traceDir: process.env.AGENT_TRACE_DIR || path.join(workspaceRoot, '.codebuddy', 'traces'),
     maxObservationChars: num(process.env.AGENT_MAX_OBSERVATION_CHARS, 1800),
     maxPlanSteps: num(process.env.AGENT_MAX_PLAN_STEPS, 5),
-    // Groq's on-demand free tier allows 8,000 tokens/minute per model. Pacing
-    // to that ceiling is cheaper than absorbing 429s.
-    tpmLimit: num(process.env.AGENT_TPM_LIMIT, 8000),
+    // Client-side pacing only matters against a provider with a per-minute
+    // token ceiling (Groq's free tier: 8,000 TPM). DeepSeek bills instead of
+    // throttling, so the default is off.
+    tpmLimit: num(process.env.AGENT_TPM_LIMIT, 0),
     pricePerMTokIn: num(process.env.AGENT_PRICE_IN_PER_MTOK, 0),
     pricePerMTokOut: num(process.env.AGENT_PRICE_OUT_PER_MTOK, 0),
   };
@@ -112,8 +124,8 @@ export function loadConfig(overrides: ConfigOverrides = {}): AgentConfig {
 export function assertApiKey(config: AgentConfig): void {
   if (!config.apiKey) {
     throw new Error(
-      'Missing API key. Set GROQ_API_KEY in the workspace .env file, or export it in the shell.\n' +
-        'Get a free key at https://console.groq.com/keys'
+      'Missing API key. Set PROVIDER_API_KEY (or the legacy GROQ_API_KEY) in the ' +
+        'workspace .env file, or export it in the shell.'
     );
   }
 }

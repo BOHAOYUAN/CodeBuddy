@@ -9,7 +9,7 @@ export function paginate<T>(items: T[], page: number, size: number): T[] {
   if (page < 1 || size <= 0) return [];
 
   const start = (page - 1) * size;
-  const end = start + size;
+  const end = size;
 
   return items.slice(start, end);
 }

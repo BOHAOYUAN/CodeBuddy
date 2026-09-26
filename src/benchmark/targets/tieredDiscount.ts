@@ -13,10 +13,10 @@ export function calculateTieredDiscount(amount: number, tiers: TierRule[]): numb
   const sortedTiers = [...tiers].sort((a, b) => b.threshold - a.threshold);
 
   for (const tier of sortedTiers) {
-if (amount >= tier.threshold) {
-  const finalPrice = amount - tier.discount;
-  return finalPrice;
-}
+    if (amount >= tier.threshold) {
+      const finalPrice = amount - tier.discount;
+      return finalPrice;
+    }
   }
 
   return amount;
