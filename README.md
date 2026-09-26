@@ -89,7 +89,28 @@ src/
 
 ## Measured behaviour
 
-Numbers below come from real runs against `openai/gpt-oss-120b` on Groq's free tier.
+> **Read this before quoting any number below.**
+>
+> The measurements in this section come from `openai/gpt-oss-120b` on Groq's free
+> tier (2026-09-19). The project has since moved to DeepSeek, and **the same
+> benchmark no longer reproduces those results**: a control run on 2026-09-26
+> with the current code scored **0/4** on the same four tasks.
+>
+> Two conclusions, both honest:
+>
+> 1. Success rate is **model-bound**. 75 % on one provider does not transfer to
+>    another, even a stronger one. Any benchmark here is meaningless without
+>    naming the model.
+> 2. The 2026-09-19 pass contained runs that crashed before completing a first
+>    iteration and were counted as "not solved". The evaluation harness now
+>    separates *crashed* from *attempted and failed*; re-reading old reports
+>    through that lens is required before comparing them.
+>
+> Current status: adapting the agent to DeepSeek. Behaviour is healthy (no
+> thrashing, patches are attempted), but the repair success rate is 0/8.
+
+Numbers below are the historical Groq runs, kept because they document what the
+harness measured at the time — not what it measures today.
 
 ### AST-driven context pruning
 
@@ -163,7 +184,7 @@ DeepSeek bills peak and off-peak (peak = 09:00–12:00 and 14:00–18:00 Beijing
 **weekends are entirely off-peak**), so schedule batch runs for the evening or the weekend to halve
 the bill again. Identical system prompts hit the prompt cache and cost 50× less than a cache miss.
 
-To switch, edit the four `GROQ_*` lines in `.env` — see the comments in that file for the current
+To switch, edit the four `PROVIDER_*` lines in `.env` — see the comments in that file for the current
 rate card. Note that `deepseek-chat` and `deepseek-reasoner` have been retired; the current names are
 `deepseek-flash` and `deepseek-v4-pro`.
 
@@ -187,10 +208,10 @@ npm install
 
 ```bash
 cp .env.example .env
-# then set GROQ_API_KEY (free key: https://console.groq.com/keys)
+# then set PROVIDER_API_KEY=sk-... (or the legacy GROQ_API_KEY)
 ```
 
-`.env` is gitignored. Any OpenAI-compatible endpoint works — point `GROQ_BASE_URL` at DeepSeek,
+`.env` is gitignored. Any OpenAI-compatible endpoint works — point `PROVIDER_BASE_URL` at DeepSeek,
 Together, vLLM or a local server and everything else stays the same.
 
 ### 3. Run a single repair
@@ -242,7 +263,7 @@ Then press **F5** (the `Run Extension` launch configuration builds first), or pa
 `npm run vscode:package`. The sidebar streams the real trace, shows the raw test output, and lets you
 switch between benchmark tasks.
 
-The API key is read from `codebuddy.groqApiKey` (Settings) or from the workspace `.env`.
+The API key is read from `codebuddy.providerApiKey` (Settings) or from the workspace `.env`.
 
 > **Scope note.** Inside the extension the agent's workspace root is the *extension's own directory*,
 > not the folder you have open. The benchmark targets, their tests, traces and memory all live there,
@@ -306,14 +327,18 @@ to the model as a callable tool (`recall_memory`).
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GROQ_API_KEY` | — | required |
-| `GROQ_BASE_URL` | `https://api.groq.com/openai/v1` | any OpenAI-compatible endpoint |
-| `GROQ_MODEL` | `openai/gpt-oss-120b` | main loop model |
-| `GROQ_VALIDATOR_MODEL` | `openai/gpt-oss-20b` | patch review model |
+| `PROVIDER_API_KEY` | — | required (legacy alias `GROQ_API_KEY` still read) |
+| `PROVIDER_BASE_URL` | `https://api.deepseek.com` | any OpenAI-compatible endpoint |
+| `PROVIDER_MODEL` | `deepseek-flash` | main loop model |
+| `PROVIDER_VALIDATOR_MODEL` | `deepseek-flash` | patch review model |
 | `AGENT_MAX_ITERATIONS` | 12 | hard iteration cap |
 | `AGENT_MAX_RETRIES` | 5 | HTTP retry budget |
-| `AGENT_TPM_LIMIT` | 8000 | token-budget pacer ceiling; 0 disables |
-| `AGENT_MAX_TOKENS` | 700 | completion budget per call |
+| `AGENT_TPM_LIMIT` | 0 | token-budget pacer ceiling; 0 disables |
+| `AGENT_MAX_TOKENS` | 700 | completion budget per call (plan/tool/reflect) |
+| `AGENT_MAX_OBSERVATION_CHARS` | 1800 | tool output truncation; raise or failures become undiagnosable |
+| `AGENT_NO_PATCH_NUDGE_AT` | 3 | iteration at which a "you have not edited anything" reminder is injected; 0 disables |
+| `AGENT_PRICE_IN_PER_MTOK` | 0 | input price, for the cost figure in reports |
+| `AGENT_PRICE_OUT_PER_MTOK` | 0 | output price, for the cost figure in reports |
 | `AGENT_CONTEXT_CHARS` | 9000 | short-term memory budget |
 | `AGENT_MAX_OBSERVATION_CHARS` | 1800 | tool output clipping |
 | `AGENT_CROSS_VALIDATION` | false | second-model gate before writing a patch |
