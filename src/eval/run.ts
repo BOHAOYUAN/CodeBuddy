@@ -367,6 +367,26 @@ async function main() {
   fs.mkdirSync(outDir, { recursive: true });
 
   const jsonPath = path.join(outDir, 'eval-report.json');
+
+  // Archive the previous report before overwriting it. Evaluation runs are
+  // expensive (minutes of LLM time each) and the old behaviour silently
+  // destroyed every prior result on the next run.
+  const historyDir = path.join(outDir, 'history');
+  try {
+    if (fs.existsSync(jsonPath)) {
+      fs.mkdirSync(historyDir, { recursive: true });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      fs.copyFileSync(jsonPath, path.join(historyDir, `eval-report-${stamp}.json`));
+      const prevMd = path.join(outDir, 'eval-report.md');
+      if (fs.existsSync(prevMd)) {
+        fs.copyFileSync(prevMd, path.join(historyDir, `eval-report-${stamp}.md`));
+      }
+      console.log(`[eval] archived previous report to ${path.join(historyDir, `eval-report-${stamp}.json`)}`);
+    }
+  } catch (err) {
+    console.warn(`[eval] could not archive previous report: ${(err as Error).message}`);
+  }
+
   fs.writeFileSync(
     jsonPath,
     JSON.stringify({ generatedAt: new Date().toISOString(), model, passes: passResults }, null, 2),
