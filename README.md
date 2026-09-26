@@ -91,23 +91,23 @@ src/
 
 > **Read this before quoting any number below.**
 >
-> The measurements in this section come from `openai/gpt-oss-120b` on Groq's free
-> tier (2026-09-19). The project has since moved to DeepSeek, and **the same
-> benchmark no longer reproduces those results**: a control run on 2026-09-26
-> with the current code scored **0/4** on the same four tasks.
+> The measurements in this section come from `openai/gpt-oss-120b` (Groq free
+> tier, 2026-09-19). The project now targets DeepSeek and **these figures have not
+> yet been re-measured on it** — treat them as historical until they are.
 >
-> Two conclusions, both honest:
+> Two caveats, both worth knowing before you quote anything:
 >
-> 1. Success rate is **model-bound**. 75 % on one provider does not transfer to
->    another, even a stronger one. Any benchmark here is meaningless without
->    naming the model.
-> 2. The 2026-09-19 pass contained runs that crashed before completing a first
->    iteration and were counted as "not solved". The evaluation harness now
->    separates *crashed* from *attempted and failed*; re-reading old reports
->    through that lens is required before comparing them.
+> 1. Success rate is **model-bound**. A result on one provider does not transfer
+>    to another. A benchmark without a model name is not a benchmark.
+> 2. The 2026-09-19 pass counted runs that crashed before completing a first
+>    iteration as "not solved". The harness now separates *crashed* from
+>    *attempted and failed*, so old and new reports are not directly comparable.
 >
-> Current status: adapting the agent to DeepSeek. Behaviour is healthy (no
-> thrashing, patches are attempted), but the repair success rate is 0/8.
+> A 2026-09-26 attempt to re-measure was invalid: the environment it ran in could
+> not spawn a shell, so no test ever executed and every run scored zero for a
+> reason that had nothing to do with the agent. `executeTestSuite` now reports
+> that condition explicitly instead of disguising it as a failing test. Re-run
+> the benchmark from a normal terminal before trusting any current number.
 
 Numbers below are the historical Groq runs, kept because they document what the
 harness measured at the time — not what it measures today.
