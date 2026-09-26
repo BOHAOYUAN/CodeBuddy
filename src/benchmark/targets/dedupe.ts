@@ -11,15 +11,13 @@ export interface Dedupable {
  *  - The relative order of the surviving entries must match the input order.
  */
 export function dedupeByKey<T>(items: T[], keyOf: (item: T) => string): T[] {
-  const seen = new Set<string>();
-  const result: T[] = [];
+  const seen = new Map<string, T>();
 
   for (const item of items) {
-    const key = keyOf(item);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(item);
+    seen.set(keyOf(item), item);
   }
 
-  return result;
+  items.length = 0;
+
+  return [...seen.values()];
 }

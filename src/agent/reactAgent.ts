@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import { AgentConfig, assertApiKey } from '../config';
 import { ChatMessage, LlmClient } from '../llm/client';
 import { analyzeCodeAST } from '../tools/astAnalyzer';
-import { executeTestSuite } from '../tools/codeTools';
+import { checkCommandEnvironment, executeTestSuite } from '../tools/codeTools';
 import { dispatchTool, getToolSchemas, resolveInsideWorkspace, ToolContext } from '../tools/registry';
 import { LoopGuard } from './loopGuard';
 import { LongTermMemory, ShortTermMemory } from './memory';
@@ -76,6 +76,14 @@ class LoopDetected extends Error {
   }
 }
 
+/** Thrown before any planning when the environment cannot run commands at all. */
+class EnvironmentUnavailable extends Error {
+  constructor(readonly detail: string) {
+    super(detail);
+    this.name = 'EnvironmentUnavailable';
+  }
+}
+
 export class ReActAgent {
   private readonly llm: LlmClient;
   private readonly memory: LongTermMemory;
@@ -140,6 +148,14 @@ export class ReActAgent {
     let abortedReason: string | undefined;
 
     try {
+      // Fail fast before spending a single planning token: if this machine
+      // cannot start a shell, no amount of model reasoning can repair anything,
+      // and every downstream failure would be misread as a model problem.
+      const environment = checkCommandEnvironment(config.workspaceRoot);
+      if (!environment.ok) {
+        throw new EnvironmentUnavailable(environment.error);
+      }
+
       plan = await this.plan();
 
       const toolCtx: ToolContext = {
@@ -316,6 +332,19 @@ export class ReActAgent {
       if (err instanceof LoopDetected) {
         stopReason = 'loop detected';
         loopDetail = err.detail;
+      } else if (err instanceof EnvironmentUnavailable) {
+        stopReason = 'environment unavailable';
+        abortedReason = err.detail;
+        this.emit({
+          step: 0,
+          iteration: 0,
+          category: 'error',
+          title: 'Environment unavailable — run not started',
+          content:
+            'No iteration was spent: this machine cannot execute commands, so no test could ' +
+            'ever run and no repair could be verified.\n\n' +
+            err.detail,
+        });
       } else {
         stopReason = 'fatal error';
         abortedReason = (err as Error).message;
@@ -330,10 +359,15 @@ export class ReActAgent {
     }
 
     // Verification is performed independently of whatever the model claimed.
-    success = this.verify();
+    // Skipped when the loop never ran: there is nothing to verify, and on a
+    // broken environment a verification attempt only adds noise.
+    success = lastIteration > 0 ? this.verify() : false;
     if (success) stopReason = 'verified: tests passing';
 
-    const reflection = await this.reflect(success, stopReason, plan);
+    const reflection =
+      stopReason === 'environment unavailable'
+        ? 'Run skipped: this environment cannot execute commands, so nothing was attempted.'
+        : await this.reflect(success, stopReason, plan);
 
     this.emit({
       step: lastIteration,

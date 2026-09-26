@@ -165,6 +165,30 @@ export function applyCodePatch(
   };
 }
 
+/**
+ * Cheap up-front check that this environment can execute commands at all.
+ *
+ * Without it, a locked-down machine burns the whole iteration budget probing
+ * for a shell that will never start (observed: EBUSY on every command,
+ * including `echo hi`), and every resulting failure is misattributed to the
+ * model. One probe now costs a single spawn and saves the entire run.
+ *
+ * A probe that runs and exits non-zero proves the environment works — only a
+ * spawn failure counts.
+ */
+export function checkCommandEnvironment(
+  cwd: string,
+  options: { shell?: string; command?: string } = {}
+): { ok: true } | { ok: false; error: string } {
+  const probe = executeTestSuite(options.command || 'echo ok', cwd, {
+    ...(options.shell ? { shell: options.shell } : {}),
+  });
+  if (!probe.success && /DID NOT RUN/.test(probe.error || '')) {
+    return { ok: false, error: probe.error as string };
+  }
+  return { ok: true };
+}
+
 export function executeTestSuite(
   command: string,
   cwd: string,

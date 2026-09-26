@@ -49,6 +49,7 @@ export type StopReason =
   | 'max iterations reached'
   | 'loop detected'
   | 'model stopped without tool call'
+  | 'environment unavailable'
   | 'fatal error';
 
 export interface TraceSink {

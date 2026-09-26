@@ -81,6 +81,7 @@ function parseArgs(argv: string[]) {
  */
 export function isUnrun(r: TaskResult): boolean {
   return (
+    r.stopReason === 'environment unavailable' ||
     r.stopReason === 'fatal error' ||
     r.stopReason === 'harness error' ||
     (r.iterations === 0 && !r.success && r.totalTokens === 0)
