@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodeBuddy Agent — 自主修复单元测试的编程 Agent</title>
+<meta name="description" content="CodeBuddy Agent：规划 → ReAct 工具循环 → 独立验证 → 反思。62 个单元测试，可复现的评测框架。VS Code 扩展 + CLI，TypeScript 实现。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠</text></svg>">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --bg2: #111621;
+    --line: #1e2733;
+    --fg: #e6edf3;
+    --dim: #9aa7b4;
+    --accent: #4da3ff;
+    --ok: #3fb950;
+    --warn: #d29922;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    line-height: 1.65; font-size: 15px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 22px; }
+  header { border-bottom: 1px solid var(--line); padding: 64px 0 46px; }
+  .eyebrow { color: var(--accent); font-size: 13px; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 14px; }
+  h1 { font-size: 40px; line-height: 1.2; margin: 0 0 16px; letter-spacing: -0.5px; }
+  h1 span { color: var(--dim); font-weight: 400; }
+  .lede { font-size: 17px; color: var(--dim); max-width: 640px; margin: 0 0 26px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  a.btn {
+    display: inline-block; padding: 10px 20px; border-radius: 7px; text-decoration: none;
+    font-weight: 600; font-size: 14.5px; border: 1px solid var(--line); color: var(--fg);
+    transition: border-color .15s, background .15s;
+  }
+  a.btn:hover { border-color: var(--accent); }
+  a.btn.primary { background: var(--accent); border-color: var(--accent); color: #06101d; }
+  a.btn.primary:hover { background: #6fb4ff; }
+  section { padding: 46px 0; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 22px; margin: 0 0 8px; }
+  .sub { color: var(--dim); font-size: 14.5px; margin: 0 0 24px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 8px; }
+  .stat { background: var(--bg2); border: 1px solid var(--line); border-radius: 9px; padding: 16px 18px; }
+  .stat b { display: block; font-size: 26px; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 13px; color: var(--dim); }
+  ol.flow { list-style: none; counter-reset: step; padding: 0; margin: 0; }
+  ol.flow li {
+    counter-increment: step; position: relative; padding: 0 0 20px 46px;
+    border-left: 1px solid var(--line); margin-left: 13px;
+  }
+  ol.flow li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.flow li::before {
+    content: counter(step); position: absolute; left: -13px; top: 0;
+    width: 26px; height: 26px; border-radius: 50%; background: var(--bg2);
+    border: 1px solid var(--line); color: var(--accent);
+    font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  ol.flow b { display: block; margin-bottom: 2px; }
+  ol.flow p { margin: 0; color: var(--dim); font-size: 14px; }
+  ul.checks { list-style: none; padding: 0; margin: 0; }
+  ul.checks li { padding-left: 26px; position: relative; margin-bottom: 11px; color: var(--dim); }
+  ul.checks li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+  ul.checks li b { color: var(--fg); }
+  .note {
+    background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--warn);
+    border-radius: 7px; padding: 14px 18px; color: var(--dim); font-size: 14px;
+  }
+  .note b { color: var(--fg); }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 6px; font-size: 13px; color: #a5d6ff;
+  }
+  pre {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 9px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  pre code { background: none; border: 0; padding: 0; color: var(--fg); }
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .tag {
+    font-size: 12.5px; color: var(--dim); border: 1px solid var(--line);
+    background: var(--bg2); border-radius: 20px; padding: 4px 13px;
+  }
+  footer { padding: 40px 0 64px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  @media (max-width: 600px) {
+    h1 { font-size: 30px; }
+    header { padding: 44px 0 34px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">TypeScript · VS Code Extension + CLI</div>
+    <h1>CodeBuddy Agent<br><span>让 Agent 自己定位并修好失败的单元测试</span></h1>
+    <p class="lede">
+      一个自主代码修复 Agent：读取失败测试 → 规划 → 调用真实工具改代码 → <b>由 harness 独立跑测试验证</b>
+      → 把根因写进长期记忆，供下一次任务复用。不是演示脚本，每一步都由真实模型响应驱动。
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/BOHAOYUAN/CodeBuddy">查看源码</a>
+      <a class="btn" href="https://github.com/BOHAOYUAN/CodeBuddy#readme">使用说明</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>可核对的事实</h2>
+    <p class="sub">下面是能被复现的数字，不是宣传口径。</p>
+    <div class="stats">
+      <div class="stat"><b>62</b><span>单元测试，全部通过</span></div>
+      <div class="stat"><b>4</b><span>阶段运行时：规划 / ReAct / 验证 / 反思</span></div>
+      <div class="stat"><b>0</b><span>硬编码演示轨迹</span></div>
+      <div class="stat"><b>6+</b><span>类防护：循环、预算、Schema、路径…</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>它是怎么工作的</h2>
+    <p class="sub">四个阶段，中间任何一步失败都不会被悄悄跳过。</p>
+    <ol class="flow">
+      <li><b>规划</b><p>先输出结构化 JSON 计划（假设 + 步骤），而不是直接乱改文件。</p></li>
+      <li><b>ReAct 工具循环</b><p>模型自己选择每次工具调用，观察结果后决定下一步。</p></li>
+      <li><b>独立验证</b><p>由 harness 自己运行真实测试并回读结果，<b>不采信模型的自我陈述</b>。</p></li>
+      <li><b>反思 → 长期记忆</b><p>记录根因与教训，供下一次任务召回。</p></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>边界条件是被写进架构的，不是靠提示词祈祷</h2>
+    <p class="sub">前提很明确：模型的输出不可靠。所以每一类失败都有对应的处理。</p>
+    <ul class="checks">
+      <li><b>跑不完</b> — 迭代次数硬上限（默认 12，可配置到 50）</li>
+      <li><b>陷入死循环</b> — 字节归一化的重复检测 + 两次调用成环检测 + 无进展追踪</li>
+      <li><b>工具参数是垃圾</b> — 任何 handler 执行前先过 JSON Schema 校验</li>
+      <li><b>补丁打到错的地方</b> — 精确匹配失败后走空白容忍匹配，<b>有歧义就拒绝写入</b></li>
+      <li><b>跑出工作区</b> — 每个路径都会被解析并限制在工作区根目录内，危险命令拦截，写文件与执行命令二次确认</li>
+      <li><b>钱烧超了</b> — token 预算节流器 + 用量先预留后结算</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>跑起来</h2>
+    <p class="sub">两步，不需要额外配置。</p>
+    <pre><code>git clone https://github.com/BOHAOYUAN/CodeBuddy.git
+cd CodeBuddy &amp;&amp; npm install
+
+npm test            # 62 个单元测试，约 1 秒
+npm run typecheck   # TypeScript 严格校验
+npm start           # 用 CLI 跑一次真实修复任务</code></pre>
+    <p class="sub" style="margin-top:18px">
+      需要在工作区 <code>.env</code> 里填一个 OpenAI 兼容的接口地址与 Key
+      （<code>PROVIDER_BASE_URL</code> / <code>PROVIDER_API_KEY</code> / <code>PROVIDER_MODEL</code>），
+      <code>.env.example</code> 里有全部可调参数。
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>我知道它哪里不行</h2>
+    <p class="sub">这些限制我自己写在 README 里，因为知道自己系统的坏点也是系统的一部分。</p>
+    <div class="note">
+      <b>评测基准很小</b>：每个任务都是一个函数 + 一个测试文件，没有验证过多文件改动或构建流程。<br>
+      <b>反思可能写错</b>：长期记忆里的教训由模型生成，即使修复成功，记录的根因也可能是错的——需要更严格的写入闸门，目前尚未实现。<br>
+      <b>只测过一个模型家族</b>：所有数据来自 <code>openai/gpt-oss-120b</code>，换模型的真实表现未测量。<br>
+      <b>扩展目前只在自己的目录内工作</b>，还不会去修用户的项目——这是刻意的范围边界，不是已完成的功能。
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>技术栈</h2>
+    <div class="stack">
+      <span class="tag">TypeScript</span>
+      <span class="tag">Node.js</span>
+      <span class="tag">VS Code Extension API</span>
+      <span class="tag">ReAct / Tool Calling</span>
+      <span class="tag">Babel AST</span>
+      <span class="tag">JSON Schema</span>
+      <span class="tag">Vitest</span>
+      <span class="tag">esbuild</span>
+      <span class="tag">SSE 流式响应</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    MIT License ·
+    <a href="https://github.com/BOHAOYUAN/CodeBuddy">github.com/BOHAOYUAN/CodeBuddy</a>
+  </div>
+</footer>
+
+</body>
+</html>
