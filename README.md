@@ -1,5 +1,7 @@
 # CodeBuddy Agent
 
+[![CI](https://github.com/BOHAOYUAN/CodeBuddy/actions/workflows/ci.yml/badge.svg)](https://github.com/BOHAOYUAN/CodeBuddy/actions/workflows/ci.yml)
+
 An autonomous **ReAct code-repair agent** for TypeScript/JavaScript workspaces, packaged both as a
 VSCode extension and a CLI, with a reproducible evaluation harness.
 
