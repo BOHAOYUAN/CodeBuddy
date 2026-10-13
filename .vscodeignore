@@ -1,6 +1,9 @@
 .vscode/**
 .vscode-test/**
 src/**
+docs/**
+.codebuddy/**
+dist/**/*.test.js
 node_modules/**
 public/**
 scratch/**
@@ -10,4 +13,7 @@ scratch/**
 tsconfig.json
 esbuild.js
 electron-main.js
+vitest.config.mts
+vitest.benchmark.config.mts
+.gitignore
 **/*.map
