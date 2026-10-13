@@ -101,11 +101,12 @@
     <h1>CodeBuddy Agent<br><span>让 Agent 自己定位并修好失败的单元测试</span></h1>
     <p class="lede">
       一个自主代码修复 Agent：读取失败测试 → 规划 → 调用真实工具改代码 → <b>由 harness 独立跑测试验证</b>
-      → 把根因写进长期记忆，供下一次任务复用。不是演示脚本，每一步都由真实模型响应驱动。
+      → 把根因写进长期记忆，供下一次任务复用。CLI 与扩展里每一步都由真实模型响应驱动。
     </p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/BOHAOYUAN/CodeBuddy">查看源码</a>
-      <a class="btn" href="https://github.com/BOHAOYUAN/CodeBuddy#readme">使用说明</a>
+      <a class="btn" href="https://github.com/BOHAOYUAN/CodeBuddy/releases/latest">下载 .vsix</a>
+      <a class="btn" href="mockup.html">界面预览（脚本回放）</a>
     </div>
   </div>
 </header>
@@ -117,7 +118,7 @@
     <div class="stats">
       <div class="stat"><b>62</b><span>单元测试，全部通过</span></div>
       <div class="stat"><b>4</b><span>阶段运行时：规划 / ReAct / 验证 / 反思</span></div>
-      <div class="stat"><b>0</b><span>硬编码演示轨迹</span></div>
+      <div class="stat"><b>0</b><span>硬编码演示轨迹（CLI 与扩展）</span></div>
       <div class="stat"><b>6+</b><span>类防护：循环、预算、Schema、路径…</span></div>
     </div>
   </div>
@@ -160,6 +161,7 @@ cd CodeBuddy &amp;&amp; npm install
 
 npm test            # 62 个单元测试，约 1 秒
 npm run typecheck   # TypeScript 严格校验
+npm run build       # 编译产出 dist/
 npm start           # 用 CLI 跑一次真实修复任务</code></pre>
     <p class="sub" style="margin-top:18px">
       需要在工作区 <code>.env</code> 里填一个 OpenAI 兼容的接口地址与 Key
@@ -202,7 +204,8 @@ npm start           # 用 CLI 跑一次真实修复任务</code></pre>
 <footer>
   <div class="wrap">
     MIT License ·
-    <a href="https://github.com/BOHAOYUAN/CodeBuddy">github.com/BOHAOYUAN/CodeBuddy</a>
+    <a href="https://github.com/BOHAOYUAN/CodeBuddy">github.com/BOHAOYUAN/CodeBuddy</a> ·
+    <a href="mockup.html">界面预览</a>
   </div>
 </footer>
 

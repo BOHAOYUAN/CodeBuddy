@@ -6,14 +6,21 @@ VSCode extension and a CLI, with a reproducible evaluation harness.
 The agent plans, calls tools through real LLM function calling, repairs failing unit tests, verifies
 its own work with an independent test run, and writes what it learned into long-term memory.
 
-> Every line of telemetry this project displays is produced by an actual model response or an actual
-> tool execution. Nothing is scripted.
+> Every line of telemetry the CLI and the extension display is produced by an actual model response or
+> an actual tool execution. Nothing is scripted **in the agent itself** — see the note on the web
+> preview below, which is a separate, clearly-labelled UI mock.
+
+> **Accuracy note about the web preview.** `docs/mockup.html` is a **static UI mock**: it calls no
+> model and runs no tests — clicking *Auto-Repair* just replays a fixed sequence so the interface can
+> be seen without an API key. It is labelled as such on the page. The real, non-scripted runs happen
+> through the CLI (`npm start`) and the VS Code extension, and their reports are written to
+> `.codebuddy/` by the evaluation harness.
 
 **Install** — grab the `.vsix` from
 [Releases](https://github.com/BOHAOYUAN/CodeBuddy/releases/latest)
 (`code --install-extension codebuddy-agent-2.0.0.vsix`), or run it from source with `npm install && npm test`.
 
-**Docs site** — [codebuddy-hyhm.vercel.app](https://codebuddy-hyhm.vercel.app)
+**Site** — [codebuddy-hyhm.vercel.app](https://codebuddy-hyhm.vercel.app)
 
 ---
 
