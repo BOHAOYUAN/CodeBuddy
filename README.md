@@ -106,9 +106,9 @@ src/
 
 > **Read this before quoting any number below.**
 >
-> The measurements in this section come from `openai/gpt-oss-120b` (Groq free
-> tier, 2026-09-19). The project now targets DeepSeek and **these figures have not
-> yet been re-measured on it** — treat them as historical until they are.
+> All measurements in this section come from `openai/gpt-oss-120b` (Groq free tier).
+> The project's default provider is DeepSeek; **no run has been recorded on it yet**,
+> so the figures below are Groq-only.
 >
 > Two caveats, both worth knowing before you quote anything:
 >
@@ -118,14 +118,39 @@ src/
 >    iteration as "not solved". The harness now separates *crashed* from
 >    *attempted and failed*, so old and new reports are not directly comparable.
 >
-> A 2026-09-26 attempt to re-measure was invalid: the environment it ran in could
-> not spawn a shell, so no test ever executed and every run scored zero for a
-> reason that had nothing to do with the agent. `executeTestSuite` now reports
-> that condition explicitly instead of disguising it as a failing test. Re-run
-> the benchmark from a normal terminal before trusting any current number.
+> The 2026-09-26 re-measurement scored 0/4, and that result was **invalid**: the
+> environment could not spawn a shell, so no test ever executed and every run
+> scored zero for a reason that had nothing to do with the agent.
+> `executeTestSuite` now reports that condition explicitly instead of disguising it
+> as a failing test. On 2026-10-13 the same four tasks were re-run from a normal
+> terminal and the earlier 3/4 reproduced (see the committed report below).
 
 Numbers below are the historical Groq runs, kept because they document what the
 harness measured at the time — not what it measures today.
+
+### Benchmark results — 2026-10-13, `openai/gpt-oss-120b`, warm long-term memory
+
+Raw report: [`benchmarks/2026-10-13-gpt-oss-120b.md`](benchmarks/2026-10-13-gpt-oss-120b.md) (committed, with the JSON alongside it).
+Reproduce with `npm run eval -- --tasks=tieredDiscount,pagination,dedupe,retry`.
+
+| Task | Bug class | Solved | Iterations | Tool calls | Tokens | Wall clock |
+|---|---|---|---|---|---|---|
+| `tieredDiscount` | boundary + float truncation | **yes** | 7 | 6 | 19,124 | 69.3 s |
+| `pagination` | off-by-one + rounding | **yes** | 10 | 9 | 29,520 | 190.2 s |
+| `dedupe` | wrong-wins + input mutation | **yes** | 6 | 5 | 14,462 | 87.4 s |
+| `retry` | linear vs exponential backoff | no | 12 | 12 | 35,695 | 229.3 s |
+
+**3 of 4 solved (75 %), 98,801 tokens, $0.0192, avg 144.1 s per task.**
+Every task ran with **0 tool errors**, i.e. no run was lost to malformed tool calls or
+rejected patches. AST pruning reduced prompt context by **67.15 %** on these targets.
+
+This pass ran with long-term memory populated (4 lessons from the earlier Groq runs), so
+it is *not* comparable to the cold-memory baseline below. It is also the first recorded run
+in which the whole path — plan, tool loop, independent verification, reflection — completed
+end to end after the shell-spawn defect was fixed.
+
+`retry` remains unsolved: it exhausts the iteration cap and now reports
+`max iterations reached` rather than claiming a fix it cannot verify.
 
 ### AST-driven context pruning
 
