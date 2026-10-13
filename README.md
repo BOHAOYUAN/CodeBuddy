@@ -9,6 +9,12 @@ its own work with an independent test run, and writes what it learned into long-
 > Every line of telemetry this project displays is produced by an actual model response or an actual
 > tool execution. Nothing is scripted.
 
+**Install** — grab the `.vsix` from
+[Releases](https://github.com/BOHAOYUAN/CodeBuddy/releases/latest)
+(`code --install-extension codebuddy-agent-2.0.0.vsix`), or run it from source with `npm install && npm test`.
+
+**Docs site** — [codebuddy-hyhm.vercel.app](https://codebuddy-hyhm.vercel.app)
+
 ---
 
 ## Why this is not another agent demo
